@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEXOVEN - Conversor MXN a Envíos</title>
+    <!-- Include Tailwind CSS for fast and responsive styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Global and responsive styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: rgb(219, 238, 244); /* Light blue background for the entire page */
+            display: flex;
+            flex-direction: column; /* Organize elements in a column */
+            justify-content: flex-start; /* Align elements to the start */
+            align-items: center; /* Center elements horizontally */
+            min-height: 100vh; /* Ensure it occupies at least the entire viewport height */
+            margin: 0;
+            padding: 20px; /* General spacing for desktop */
+            padding-bottom: 80px; /* Space for the fixed bottom menu */
+            overflow-y: auto; /* ALLOW body scrolling */
+            overflow-x: hidden; /* Hide horizontal scroll */
+            transition: background-color 1s ease-in-out; /* Smooth transition for body background color */
+            
+            /* HIDE SCROLLBAR VISUALLY (scroll functionality remains) */
+            -ms-overflow-style: none; /* For Internet Explorer and Edge */
+            scrollbar-width: none; /* For Firefox */
+        }
+
+        /* HIDE SCROLLBAR VISUALLY for WebKit based browsers (Chrome, Safari) */
+        body::-webkit-scrollbar {
+            display: none; /* Hide scrollbar */
+        }
+
+        /* Styles for the new top logo */
+        .top-app-logo {
+            width: 100%;
+            max-width: 448px; /* To match the max width of the main container */
+            height: auto; /* Maintain aspect ratio */
+            display: block; /* So margin: auto works for centering */
+            margin: 20px auto; /* Center horizontally and add vertical margin */
+        }
+
+        /* Main application container */
+        #appContainer {
+            flex-grow: 1; /* Allow the container to grow and take available space */
+            width: 100%;
+            max-width: 448px; /* Tailwind's max-w-md (448px) */
+            margin: auto; /* Center content horizontally */
+            background-color: rgb(219, 238, 244); /* Light blue background for the app content (maintained) */
+            padding: 32px; /* Tailwind's p-8 */
+            border-radius: 12px; /* Tailwind's rounded-xl */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Tailwind's shadow-lg */
+            
+            /* Visibility control and transition for app container appearance */
+            opacity: 0; /* Initially hidden */
+            pointer-events: none; /* Disable interactions while hidden */
+            transition: opacity 0.5s ease-in-out; /* Smooth opacity transition */
+            
+            /* Flexbox properties that will activate when visible */
+            display: flex; /* Ensure it displays as flexbox when visible */
+            flex-direction: column;
+            align-items: center;
+
+            /* Removed: overflow-y: auto; (scroll responsibility returns to the body) */
+        }
+        /* Class to make the app container visible after loading */
+        #appContainer.visible {
+            opacity: 1;
+            pointer-events: auto; /* Enable interactions when visible */
+        }
+
+
+        /* Styles for individual screens */
+        .screen {
+            width: 100%;
+            display: none; /* Hidden by default */
+            animation: fadeInScreen 0.5s forwards; /* Animation for screen appearance */
+        }
+        .screen.active {
+            display: block; /* Show active screen */
+        }
+
+        @keyframes fadeInScreen {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Loading screen background */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgb(34, 37, 54); /* Dark blue/gray background for loading screen (consistent) */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000; /* Ensure it's on top of everything */
+            transition: opacity 0.5s ease-out; /* Smooth transition when disappearing */
+        }
+
+        .loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none; /* Allow clicks through once transparent */
+        }
+
+        /* Styles for the logo on the loading screen */
+        .loading-logo {
+            max-width: 200px; /* Larger size for loading logo */
+            height: auto;
+            animation: pulse 2s infinite; /* Pulse animation */
+        }
+
+        /* Pulse animation (optional, to bring life to the loading logo) */
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Styles for the logo inside the app (OBSOLETE, will be removed) */
+        .app-logo {
+            max-width: 150px; /* Size of the logo inside the app */
+            height: auto;
+            margin: 0 auto 20px auto; /* Center and add bottom margin */
+            display: block; /* Ensure auto margin works for centering */
+        }
+
+        /* Styles for alert/error message */
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #ffe0b2; /* Light orange color */
+            color: #e65100; /* Dark orange color */
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1001;
+            text-align: center;
+            font-weight: 600;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .message-box.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Styles for staggered fade-in animation */
+        .fade-in-item {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+        .fade-in-item.appear {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Media queries for responsiveness (maintain app background on mobile) */
+        @media (max-width: 768px) {
+            body {
+                padding: 0;
+                /* Keep padding-bottom to ensure space for fixed nav */
+                padding-bottom: 80px; 
+                /* Crucial: hide body scrollbar on mobile */
+                overflow-y: hidden; 
+                height: 100vh; /* Ensure body occupies full height */
+                min-height: 100vh; /* Ensure body occupies full height */
+            }
+            .top-app-logo {
+                /* Ensure no extra space above/below the logo */
+                margin: 0 auto; /* No vertical margin */
+                padding: 0; /* No padding on the image itself */
+                flex-shrink: 0; /* Prevent it from shrinking if space is tight */
+                flex-grow: 0; /* Prevent it from growing */
+            }
+            #appContainer {
+                width: 100%;
+                max-width: none;
+                border-radius: 0;
+                box-shadow: none;
+                margin: 0; /* No external margins */
+                padding: 20px; /* Internal padding */
+                
+                /* This is the core change: appContainer takes available space and scrolls internally */
+                flex-grow: 1; /* Allow it to grow to fill remaining vertical space */
+                overflow-y: auto; /* Enable internal scrolling */
+                min-height: 0; /* Allow it to shrink if needed, flex-grow will make it expand */
+                height: auto; /* Let flexbox determine height, then overflow-y handles content */
+            }
+        }
+
+        /* Custom selectbox and input styles */
+        .custom-selectbox {
+            width: 100%;
+            margin: auto;
+            position: relative;
+        }
+        .custom-selectbox.active {
+            z-index: 900;
+        }
+
+        .custom-select {
+            background: #ffffff;
+            width: 100%;
+            box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.16);
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: .2s ease all;
+            margin-bottom: 30px;
+            padding: 15px 20px;
+            position: relative;
+            z-index: 200;
+            border: 2px solid transparent;
+            font-size: 18px;
+            color: black;
+            font-weight: 600;
+        }
+
+        .custom-select.active,
+        .custom-select:hover {
+            box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.16);
+            border: 2px solid #213f8f;
+        }
+
+        .custom-select.active:before {
+            content: "";
+            display: block;
+            height: 0;
+            width: 0;
+            border-top: 15px solid #213f8f;
+            border-right: 15px solid transparent;
+            border-bottom: 15px solid transparent;
+            border-left: 15px solid transparent;
+            position: absolute;
+            bottom: -30px;
+            left: calc(50% - 15px);
+        }
+
+        .custom-select .arrow-icon {
+            font-size: 30px;
+            margin-left: 15px;
+            color: #213f8f;
+        }
+
+        .contenido-select {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding-left: 30px;
+            position: relative;
+        }
+
+        .contenido-select .flag {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 24px;
+        }
+
+        .opciones {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.16);
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 999; /* Z-index of the options list (must be higher than the select to appear on top) */
+            width: 100%;
+            display: none;
+            position: absolute;
+            top: calc(100% + 5px);
+            left: 0;
+        }
+
+        .opciones.active {
+            display: block;
+            animation: fadeIn .3s forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                transform: translateY(-20px) scale(.95);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+        }
+
+        .opcion {
+            display: block;
+            color: inherit;
+            text-decoration: none;
+            padding: 15px 20px;
+            transition: .2s ease all;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+        }
+
+        .opcion:hover {
+            background: #213f8f;
+        }
+
+        .opcion:hover .titulo,
+        .opcion:hover .descripcion {
+            color: #fff;
+        }
+
+        .opcion .flag {
+            font-size: 24px;
+            margin-right: 15px;
+        }
+
+        .opcion .textos {
+            flex-grow: 1;
+            text-align: left;
+        }
+
+        .opcion .titulo {
+            margin-bottom: 5px;
+            font-weight: 600;
+            font-size: 18px;
+            color: black;
+        }
+
+        .opcion .descripcion {
+            font-size: 14px;
+            color: #434343;
+        }
+
+        .amount-input-container {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        .amount-input-container input {
+            background: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.1);
+            border: 2px solid transparent;
+            padding: 15px 20px 15px 50px;
+            font-size: 18px;
+            text-align: center;
+            color: black;
+            font-weight: 600;
+            transition: .2s ease all;
+        }
+
+        .amount-input-container input:focus {
+            box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.16);
+            border: 2px solid #213f8f;
+            outline: none;
+        }
+
+        .amount-input-container .flag {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(calc(-50% + 10px));
+            font-size: 24px;
+            pointer-events: none;
+        }
+
+        ::placeholder {
+            color: #9ca3af;
+            opacity: 1;
+        }
+
+        /* Styles for the bottom navigation menu */
+        #bottomNav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: #333; /* Menu background color */
+            color: white;
+            display: flex; /* Changed to flex in JS */
+            justify-content: space-around;
+            align-items: center;
+            padding: 10px 0;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000; /* Ensure the menu is on top of everything */
+            /* Hidden by default */
+            display: none; /* Will be shown with JS */
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out; /* Transition for appearance */
+        }
+
+        #bottomNav.visible {
+            opacity: 1;
+        }
+
+        #bottomNav button {
+            background-color: transparent;
+            border: none;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        #bottomNav button:hover,
+        #bottomNav button.active {
+            background-color: #555;
+            color: #a7f3d0; /* Accent color on select/hover */
+        }
+
+        #bottomNav button svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor; /* So icon color changes with text */
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <img src="https://i.ibb.co/JRVD0p1Q/mexoven.png" alt="MEXOVEN Logo" class="loading-logo"
+             onerror="this.onerror=null;this.src='https://placehold.co/200x200/222536/FFFFFF?text=MEXOVEN+Logo';">
+    </div>
+
+    <!-- New Global Top Logo -->
+    <img src="https://i.postimg.cc/BQT7H6pW/topapp-mexoven2.png" alt="Top MEXOVEN Logo" class="top-app-logo">
+
+    <!-- Main application container -->
+    <div id="appContainer" class="hidden">
+        <!-- Home Screen Content -->
+        <div id="homeScreen" class="screen">
+            <div class="flex flex-col items-center justify-center text-center fade-in-item mb-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">¿Necesitas enviar dinero de México a Venezuela?</h2>
+                <p class="text-gray-600 mb-8">Con MexoVen, hazlo fácil y rápido. Deposita en efectivo en cualquier tienda Oxxo en México y recibe tu remesa de forma segura en Venezuela. ¡Conecta con los tuyos hoy mismo!</p>
+            </div>
+
+            <!-- Steps Section -->
+            <div class="w-full fade-in-item">
+                <h3 class="text-xl font-bold text-gray-800 mb-6 text-center">Pasos para hacer tu envío:</h3>
+                
+                <div class="flex flex-col items-center mb-6">
+                    <!-- Removed the specific text "1. Realiza tu depósito en Oxxo" -->
+                    <img src="https://i.postimg.cc/WzrtxN5Z/guia-deposito-1.png" alt="Guía de depósito paso 1" class="w-full max-w-xs rounded-lg">
+                </div>
+
+                <div class="flex flex-col items-center mb-6">
+                    <!-- Removed the specific text "2. Confirma tu depósito" -->
+                    <img src="https://i.postimg.cc/WpJDd8s4/guia-deposito-2.png" alt="Guía de depósito paso 2" class="w-full max-w-xs rounded-lg">
+                </div>
+
+                <div class="flex flex-col items-center mb-8">
+                    <!-- Removed the specific text "3. Recibe tu envío" -->
+                    <img src="https://i.postimg.cc/65J8nZQf/guia-deposito-3.png" alt="Guía de depósito paso 3" class="w-full max-w-xs rounded-lg">
+                </div>
+
+                <div class="mb-5 text-center fade-in-item">
+                    <button
+                        id="calculateShippingButton"
+                        class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 shadow-md"
+                    >
+                        Calcula tu envío
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calculator Screen Content -->
+        <div id="calculatorScreen" class="screen">
+            
+            <!-- Mexican Pesos (MXN) input field -->
+            <div class="amount-input-container mb-4 relative fade-in-item">
+                <label for="mxnAmountInput" class="block text-gray-700 text-sm font-medium mb-2">Cantidad en Pesos Mexicanos (MXN):</label>
+                <input
+                    type="number"
+                    id="mxnAmountInput"
+                    class="w-full"
+                    placeholder="Ej. 100 MXN"
+                    min="0"
+                    step="1"  <!-- Changed step to 1 for no decimals -->
+               
+                <span id="mxnFlag" class="flag">🇲🇽</span>
+            </div>
+
+            <!-- Shipping Country Selector (with new custom style) -->
+            <div class="custom-selectbox mb-6 fade-in-item">
+                <label for="countrySelectHidden" class="block text-gray-700 text-sm font-medium mb-2">País de Envío:</label>
+                <div class="custom-select" id="select">
+                    <div class="contenido-select">
+                        <span id="countrySelectFlag" class="flag">🇻🇪</span>
+                        <span id="selectedCountryText" class="country-text">Venezuela (VES)</span>
+                    </div>
+                    <i class="fa-solid fa-angle-down arrow-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                    </i>
+                </div>
+                
+                <div class="opciones" id="opciones">
+                    <a href="#" class="opcion" data-value="Venezuela">
+                        <span class="flag">🇻🇪</span>
+                        <div class="textos">
+                            <h2 class="titulo">Venezuela</h2>
+                            <p class="descripcion">VES</p>
+                        </div>
+                    </a>
+                    <a href="#" class="opcion" data-value="Colombia">
+                        <span class="flag">🇨🇴</span>
+                        <div class="textos">
+                            <h2 class="titulo">Colombia</h2>
+                            <p class="descripcion">COP</p>
+                        </div>
+                    </a>
+                    <a href="#" class="opcion" data-value="Chile">
+                        <span class="flag">🇨🇱</span>
+                        <div class="textos">
+                            <h2 class="titulo">Chile</h2>
+                            <p class="descripcion">CLP</p>
+                        </div>
+                    </a>
+                    <a href="#" class="opcion" data-value="Peru">
+                        <span class="flag">🇵🇪</span>
+                        <div class="textos">
+                            <h2 class="titulo">Perú</h2>
+                            <p class="descripcion">PEN</p>
+                        </div>
+                    </a>
+                </div>
+                <!-- This hidden input will store the selected value, as in your original menu.js -->
+                <input type="hidden" name="pais" id="countrySelectHidden" value="Venezuela">
+            </div>
+
+            <!-- Foreign currency input field -->
+            <div class="amount-input-container mb-6 relative fade-in-item">
+                <label for="foreignAmountInput" id="foreignCurrencyLabel" class="block text-gray-700 text-sm font-medium mb-2">Cantidad en Bolívares (VES):</label>
+                <input
+                    type="number"
+                    id="foreignAmountInput"
+                    class="w-full"
+                    placeholder="Ej. 500 VES"
+                    min="0"
+                    step="0.01"
+                >
+                <span id="foreignFlag" class="flag">🇻🇪</span>
+            </div>
+
+            <div class="mb-6 fade-in-item">
+                <label class="block text-gray-700 text-sm font-medium mb-2">Tasas de Referencia (USD):</label>
+                <div class="space-y-1">
+                    <!-- MXN rate always visible -->
+                    <p class="text-gray-600 text-sm bg-gray-50 p-2 rounded-lg border border-gray-100" id="mxnToUsdRateDisplay"></p>
+                    <!-- Other country rates (shown dynamically) -->
+                    <p class="text-gray-600 text-sm bg-gray-50 p-2 rounded-lg border border-gray-100 country-rate-display hidden" id="venezuelaToUsdRateDisplay"></p>
+                    <p class="text-gray-600 text-sm bg-gray-50 p-2 rounded-lg border border-gray-100 country-rate-display hidden" id="colombiaToUsdRateDisplay"></p>
+                    <p class="text-gray-600 text-sm bg-gray-50 p-2 rounded-lg border border-gray-100 country-rate-display hidden" id="chileToUsdRateDisplay"></p>
+                    <p class="text-gray-600 text-sm bg-gray-50 p-2 rounded-lg border border-gray-100 country-rate-display hidden" id="peruToUsdRateDisplay"></p>
+                </div>
+            </div>
+
+            <div class="mb-5 text-center fade-in-item">
+                <button
+                    id="sendWhatsappButton"
+                    class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 shadow-md"
+                >
+                    Enviar a WhatsApp
+                </button>
+            </div>
+        </div>
+
+        <!-- Rates Screen Content -->
+        <div id="ratesScreen" class="screen">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4 fade-in-item text-center">Nuestras Tasas de Conversión</h2>
+            <div id="ratesDisplayContent" class="w-full text-center fade-in-item space-y-2">
+                <!-- Rates will be inserted here dynamically -->
+            </div>
+            <p class="text-gray-600 text-sm mt-8 text-center fade-in-item">
+                Las tasas se actualizan regularmente. v1.002
+            </p>
+        </div>
+    </div>
+
+    <!-- Message box container for alerts/errors -->
+    <div id="messageBox" class="message-box"></div>
+
+    <!-- Fixed bottom navigation menu -->
+    <nav id="bottomNav">
+        <button id="homeNavBtn" class="active">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+            Inicio
+        </button>
+        <button id="calculatorNavBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-8 14H7v-4h4v4zm0-6H7V7h4v4zm6 6h-4v-4h4v4zm0-6h-4V7h4v4z"/></svg>
+            Calculadora
+        </button>
+        <button id="ratesNavBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M11 17h2v-6h-2v6zm5-12c-2.21 0-4 1.79-4 4v7c0 2.21 1.79 4 4 4s4-1.79 4-4V9c0-2.21-1.79-4-4-4zm0 2c1.1 0 2 .9 2 2v7c0 1.1-.9 2-2 2s-2-.9-2-2V9c0-1.1.9-2 2-2zm-6 2H4v7h2c0-2.21 1.79-4 4-4s4-1.79 4-4V9c0-2.21-1.79-4-4-4zm0 2c1.1 0 2 .9 2 2v7c0 1.1-.9 2-2 2s-2-.9-2-2V9c0-1.1.9-2 2-2z"/></svg>
+            Tasas
+        </button>
+    </nav>
+
+    <script>
+        // --- Reference rates against USD ---
+        const mxnPerUsd = 20.00;
+        const ratesPerUsd = {
+            'Venezuela': { currencyCode: 'VES', rate: 98.00, displayId: 'venezuelaToUsdRateDisplay', displayLabel: 'Tasa BCV', flag: '🇻🇪' },
+            'Colombia':  { currencyCode: 'COP', rate: 3800.00, displayId: 'colombiaToUsdRateDisplay', displayLabel: 'Tasa COP', flag: '🇨🇴' },
+            'Chile':     { currencyCode: 'CLP', rate: 800.00, displayId: 'chileToUsdRateDisplay', displayLabel: 'Tasa CLP', flag: '🇨🇱' }, // Tasa de Chile actualizada a 800.00
+            'Peru':      { currencyCode: 'PEN', rate: 3.50, displayId: 'peruToUsdRateDisplay', displayLabel: 'Tasa PEN', flag: '🇵🇪' }  // Tasa de Perú actualizada a 3.50
+        };
+        // Added MXN data for consistent display in rates screen
+        const mxnData = { currencyCode: 'MXN', rate: mxnPerUsd, displayLabel: 'Peso Mexicano', flag: '🇲🇽' };
+
+
+        const whatsappNumber = '584247671689';
+
+        // --- DOM element references ---
+        const loadingScreen = document.getElementById('loadingScreen');
+        const appContainer = document.getElementById('appContainer'); // Main app container
+        const homeScreen = document.getElementById('homeScreen');
+        const calculatorScreen = document.getElementById('calculatorScreen');
+        const ratesScreen = document.getElementById('ratesScreen');
+        const bottomNav = document.getElementById('bottomNav'); // Navigation menu reference
+
+        const mxnAmountInput = document.getElementById('mxnAmountInput');
+        const foreignAmountInput = document.getElementById('foreignAmountInput');
+        const foreignCurrencyLabel = document.getElementById('foreignCurrencyLabel');
+        const sendWhatsappButton = document.getElementById('sendWhatsappButton');
+        const mxnToUsdRateDisplay = document.getElementById('mxnToUsdRateDisplay');
+        const messageBox = document.getElementById('messageBox');
+        const ratesDisplayContent = document.getElementById('ratesDisplayContent'); // Container to display rates
+
+        // References to flag and text elements of the custom selector
+        const mxnFlag = document.getElementById('mxnFlag');
+        const foreignFlag = document.getElementById('foreignFlag');
+        const customSelectbox = document.querySelector('.custom-selectbox'); // Main container reference
+        const countrySelectContainer = document.getElementById('select'); // The div with custom-select class
+        const opcionesContainer = document.getElementById('opciones');     // The div with options class
+        const selectedCountryTextDisplay = document.getElementById('selectedCountryText'); // Span for selected country text
+        const countrySelectFlagDisplay = document.getElementById('countrySelectFlag'); // Span for selected country flag in the box
+        const hiddenCountryInput = document.getElementById('countrySelectHidden'); // The hidden input that stores the actual value
+
+        // References to specific rate display elements (inside calculatorScreen)
+        const venezuelaToUsdRateDisplay = document.getElementById('venezuelaToUsdRateDisplay');
+        const colombiaToUsdRateDisplay = document.getElementById('colombiaToUsdRateDisplay');
+        const chileToUsdRateDisplay = document.getElementById('chileToUsdRateDisplay');
+        const peruToUsdRateDisplay = document.getElementById('peruToUsdRateDisplay');
+
+        // References to navigation buttons
+        const homeNavBtn = document.getElementById('homeNavBtn');
+        const calculatorNavBtn = document.getElementById('calculatorNavBtn');
+        const ratesNavBtn = document.getElementById('ratesNavBtn');
+        const calculateShippingButton = document.getElementById('calculateShippingButton'); // New button reference
+
+
+        // --- Utility Functions ---
+
+        // Function to show a message in the message box (alert replacement)
+        function showMessage(msg) {
+            messageBox.textContent = msg;
+            messageBox.classList.add('show');
+            setTimeout(() => {
+                messageBox.classList.remove('show');
+            }, 3000);
+        }
+
+        // Function to update displayed reference rates (MXN and selected country)
+        function updateRatesDisplay() {
+            mxnToUsdRateDisplay.textContent = `1 USD = ${mxnPerUsd.toFixed(2)} MXN`;
+
+            document.querySelectorAll('.country-rate-display').forEach(el => {
+                el.classList.add('hidden');
+            });
+
+            const selectedCountry = hiddenCountryInput.value;
+            const countryData = ratesPerUsd[selectedCountry];
+            const displayElement = document.getElementById(countryData.displayId);
+            if (displayElement) {
+                displayElement.textContent = `${countryData.displayLabel}: ${countryData.rate.toFixed(2)} ${countryData.currencyCode} = 1 USD`;
+                displayElement.classList.remove('hidden');
+            }
+        }
+
+        // Function to update the label and placeholder of the foreign currency field and flags
+        function updateForeignCurrencyField(countryName) {
+            const countryData = ratesPerUsd[countryName]; 
+
+            foreignCurrencyLabel.textContent = `Cantidad en ${countryData.currencyCode} (${countryData.currencyCode}):`;
+            foreignAmountInput.placeholder = `Ej. 500 ${countryData.currencyCode}`;
+            
+            foreignFlag.textContent = countryData.flag;
+            
+            foreignAmountInput.value = '';
+            mxnAmountInput.value = '';
+        }
+
+        // Function to handle bidirectional conversion
+        function handleConversionInput(event) {
+            const targetId = event.target.id;
+            const selectedCountry = hiddenCountryInput.value;
+            const countryData = ratesPerUsd[selectedCountry];
+
+            const conversionRate = countryData.rate / mxnPerUsd;
+            const reverseConversionRate = mxnPerUsd / countryData.rate;
+
+            let mxnValue;
+            let foreignValue;
+
+            if (targetId === 'mxnAmountInput') {
+                mxnValue = parseFloat(mxnAmountInput.value);
+                if (isNaN(mxnValue) || mxnValue < 0) {
+                    foreignAmountInput.value = '';
+                    return;
+                }
+                foreignValue = Math.ceil(mxnValue * conversionRate); // Redondeo hacia arriba
+                foreignAmountInput.value = foreignValue.toFixed(2);
+            } else if (targetId === 'foreignAmountInput') {
+                foreignValue = parseFloat(foreignAmountInput.value);
+                if (isNaN(foreignValue) || foreignValue < 0) {
+                    mxnAmountInput.value = '';
+                    return;
+                }
+                mxnValue = Math.ceil(foreignValue * reverseConversionRate); // Redondeo hacia arriba
+                mxnAmountInput.value = mxnValue.toFixed(0); // Para que MXN no tenga decimales
+            }
+        }
+
+        // Function to send to WhatsApp
+        function sendToWhatsapp() {
+            const mxnAmount = parseFloat(mxnAmountInput.value);
+            const foreignAmount = parseFloat(foreignAmountInput.value);
+            const selectedCountry = hiddenCountryInput.value;
+            const countryData = ratesPerUsd[selectedCountry];
+
+            // Primary validation: check if any amount is entered
+            if (isNaN(mxnAmount) && isNaN(foreignAmount)) {
+                showMessage('Por favor, ingresa una cantidad en Pesos Mexicanos o en la moneda del país seleccionado.');
+                return;
+            }
+
+            // Validation for MXN amount
+            if (!isNaN(mxnAmount)) {
+                // Check if MXN amount is less than 200
+                if (mxnAmount < 200) {
+                    showMessage('El monto mínimo permitido en Pesos Mexicanos es de 200 MXN.');
+                    return;
+                }
+                // Check if MXN amount is greater than 5000
+                if (mxnAmount > 5000) {
+                    showMessage('El monto máximo permitido en Pesos Mexicanos es de 5000 MXN.');
+                    return;
+                }
+                // Check if MXN amount has decimal places
+                if (mxnAmount % 1 !== 0) {
+                    showMessage('No se permiten números decimales en depósitos en pesos mexicanos.');
+                    return;
+                }
+            }
+
+
+            let message = `¡Hola! Me gustaría hacer un envío hacia ${selectedCountry}:`;
+
+            if (!isNaN(mxnAmount)) {
+                message += `\nMonto a enviar en MXN: ${mxnAmount.toFixed(0)} MXN`; // Redondeo a 0 decimales para el mensaje
+            }
+            
+            message += `\n\nTasas de Conversión:`
+            message += `\n1 USD = ${mxnPerUsd.toFixed(2)} MXN`;
+            message += `\n1 USD = ${countryData.rate.toFixed(2)} ${countryData.currencyCode}`;
+            message += `\nComisiones: 0`;
+
+            let finalForeignAmount;
+            if (!isNaN(foreignAmount)) {
+                finalForeignAmount = foreignAmount;
+            } else if (!isNaN(mxnAmount)) {
+                finalForeignAmount = Math.ceil(mxnAmount * (countryData.rate / mxnPerUsd)); // Redondeo hacia arriba
+            }
+
+            if (finalForeignAmount !== undefined) {
+                message += `\n\nMonto total a recibir en ${selectedCountry}: ${finalForeignAmount.toFixed(2)} ${countryData.currencyCode}`;
+            }
+
+            const encodedMessage = encodeURIComponent(message);
+            
+            // Attempt to open WhatsApp directly using whatsapp:// URI scheme
+            const whatsappNativeUrl = `whatsapp://send?phone=${whatsappNumber}&text=${encodedMessage}`;
+            const whatsappWebUrl = `https://wa.me/${whatsappNumber}?text=${encodedMessage}`;
+
+            // Try to open the native WhatsApp app first
+            window.location.href = whatsappNativeUrl;
+
+            // Fallback to the web version if the native app doesn't open after a short delay
+            // This is a common pattern, but behavior can vary in WebViews
+            setTimeout(() => {
+                // Check if the page has changed (meaning the native app probably opened)
+                if (!document.hidden) { // document.hidden checks if the tab is visible
+                    // If the tab is still visible, the native app likely didn't open.
+                    // Redirect to the web.whatsapp.com or wa.me link.
+                    window.location.href = whatsappWebUrl;
+                }
+            }, 1000); // 1-second delay
+        }
+
+        // --- Functions for navigation and screens ---
+
+        // Function to show a specific screen
+        function showScreen(screenId) {
+            // Hide all screens
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            // Deactivate all menu buttons
+            document.querySelectorAll('#bottomNav button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Muestra la pantalla activa y activa el botón correspondiente
+            const targetScreen = document.getElementById(screenId);
+            if (targetScreen) {
+                targetScreen.classList.add('active');
+                // Vuelve a aplicar las animaciones de aparición escalonada a la nueva pantalla activa
+                const itemsToAnimate = targetScreen.querySelectorAll('.fade-in-item');
+                itemsToAnimate.forEach((item, index) => {
+                    item.classList.remove('appear'); // Reiniciar para que la animación se repita
+                    setTimeout(() => {
+                        item.classList.add('appear');
+                    }, index * 100); // Retraso escalonado
+                });
+
+                if (screenId === 'homeScreen') homeNavBtn.classList.add('active');
+                else if (screenId === 'calculatorScreen') calculatorNavBtn.classList.add('active');
+                else if (screenId === 'ratesScreen') ratesNavBtn.classList.add('active');
+            }
+
+            // Si es la pantalla de tasas, actualiza su contenido
+            if (screenId === 'ratesScreen') {
+                populateRatesScreen();
+            }
+        }
+
+        // Function to populate the rates screen
+        function populateRatesScreen() {
+            let ratesHtml = `
+                <p class="text-gray-600 text-sm bg-gray-50 p-2 rounded-lg border border-gray-100 mb-2">
+                    ${mxnData.flag} ${mxnData.rate.toFixed(2)} ${mxnData.currencyCode} = 1 USD (${mxnData.displayLabel})
+                </p>
+            `;
+            for (const country in ratesPerUsd) {
+                const data = ratesPerUsd[country];
+                ratesHtml += `
+                    <p class="text-gray-600 text-sm bg-gray-50 p-2 rounded-lg border border-gray-100 mb-2">
+                        ${data.flag} ${data.rate.toFixed(2)} ${data.currencyCode} = 1 USD (${country})
+                    </p>
+                `;
+            }
+            ratesDisplayContent.innerHTML = ratesHtml;
+        }
+
+        // Function to fetch BCV rate and schedule the next update
+        async function fetchBcvRateAndScheduleUpdate() {
+            try {
+                // API key is not needed for pydolarve.org
+                const apiKey = ""; 
+                const apiUrl = `https://pydolarve.org/api/v1/dollar?page=bcv&monitor=usd`;
+                
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                const data = await response.json();
+
+                // Corrected access to the price property
+                if (data && data.price) {
+                    const bcvPrice = parseFloat(data.price);
+                    if (!isNaN(bcvPrice)) {
+                        ratesPerUsd['Venezuela'].rate = bcvPrice;
+                        console.log(`Tasa BCV actualizada a: ${bcvPrice}`);
+                        updateRatesDisplay(); // Update display with new rate
+                    } else {
+                        console.error('Error: La tasa de BCV obtenida no es un número válido.');
+                        showMessage('Error al obtener la tasa de BCV. Usando la tasa predeterminada.');
+                    }
+                } else {
+                    console.error('Error: Estructura de respuesta de la API de BCV inesperada.');
+                    showMessage('Error al obtener la tasa de BCV. Usando la tasa predeterminada.');
+                }
+            } catch (error) {
+                console.error('Error al conectar con la API de BCV:', error);
+                showMessage('No se pudo actualizar la tasa de BCV. Verifique su conexión.');
+            } finally {
+                // Schedule next update in 6 hours (6 * 60 * 60 * 1000 ms)
+                setTimeout(fetchBcvRateAndScheduleUpdate, 6 * 60 * 60 * 1000);
+            }
+        }
+
+
+        // --- Initialization Logic ---
+        document.addEventListener('DOMContentLoaded', () => {
+            updateRatesDisplay(); // Initialize rates in the calculator
+            
+            // Set the default selected country in the custom select
+            const defaultCountry = hiddenCountryInput.value;
+            countrySelectFlagDisplay.textContent = ratesPerUsd[defaultCountry].flag; // Assign initial flag
+            selectedCountryTextDisplay.textContent = `${defaultCountry} (${ratesPerUsd[defaultCountry].currencyCode})`; // No flag in select text
+
+            updateForeignCurrencyField(defaultCountry);
+
+            // Fetch BCV rate and schedule future updates
+            fetchBcvRateAndScheduleUpdate();
+
+            // Timer to hide the loading screen and show the app
+            setTimeout(() => {
+                loadingScreen.classList.add('hidden');
+                
+                // Show the main app container and navigation menu
+                appContainer.classList.add('visible'); // Activate opacity transition for appContainer
+                
+                bottomNav.style.display = 'flex'; 
+                setTimeout(() => {
+                    bottomNav.classList.add('visible'); // Apply opacity transition to the menu
+                }, 10); // A small delay to ensure display:flex is applied before transition
+
+                // Show the calculator screen by default at load
+                showScreen('homeScreen'); // Changed to show homeScreen initially
+
+            }, 2000); // Loading screen duration (2 seconds)
+        });
+
+        // --- Event Listeners ---
+        sendWhatsappButton.addEventListener('click', sendToWhatsapp);
+        mxnAmountInput.addEventListener('input', handleConversionInput);
+        foreignAmountInput.addEventListener('input', handleConversionInput);
+        
+        // Event listeners for the custom selector
+        countrySelectContainer.addEventListener('click', () => {
+            countrySelectContainer.classList.toggle('active');
+            opcionesContainer.classList.toggle('active');
+            customSelectbox.classList.toggle('active');
+
+            // Ensure the z-index of the main select container is updated for the dropdown
+            if (customSelectbox.classList.contains('active')) {
+                customSelectbox.style.zIndex = '1002'; // High z-index for open select container
+                opcionesContainer.style.zIndex = '1003'; // Also ensure options z-index
+            } else {
+                customSelectbox.style.zIndex = 'auto'; // Reset when closed
+                opcionesContainer.style.zIndex = 'auto'; // Also reset options z-index
+            }
+        });
+
+        document.querySelectorAll('.opcion').forEach((opcion) => {
+            opcion.addEventListener('click', (e) => {
+                e.preventDefault();
+                const selectedValue = e.currentTarget.dataset.value;
+                const countryData = ratesPerUsd[selectedValue];
+
+                hiddenCountryInput.value = selectedValue;
+                countrySelectFlagDisplay.textContent = countryData.flag; // Update flag in main select
+                selectedCountryTextDisplay.textContent = `${selectedValue} (${countryData.currencyCode})`; // No flag in select text
+
+                countrySelectContainer.classList.remove('active');
+                opcionesContainer.classList.remove('active');
+                customSelectbox.classList.remove('active');
+                customSelectbox.style.zIndex = 'auto'; // Reset z-index when selecting an option
+                opcionesContainer.style.zIndex = 'auto'; // Also reset options z-index
+
+                updateForeignCurrencyField(selectedValue);
+                handleConversionInput({ target: mxnAmountInput });
+                updateRatesDisplay();
+            });
+        });
+
+        // Event listeners for fixed menu navigation buttons
+        homeNavBtn.addEventListener('click', () => showScreen('homeScreen'));
+        calculatorNavBtn.addEventListener('click', () => showScreen('calculatorScreen'));
+        ratesNavBtn.addEventListener('click', () => showScreen('ratesScreen'));
+
+        // New event listener for the "Calcula tu envío" button
+        calculateShippingButton.addEventListener('click', () => showScreen('calculatorScreen'));
+    </script>
+</body>
+</html>
